@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <title>Товары интернет-магазина</title>
+    <link href="https://fonts.googleapis.com/css?family=Faster+One" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+      <header>
+        <h1>Наши товары</h1>
+      </header>
+      <section id="product-list">
+        <!-- Сюда будут загружаться товары -->
+      </section>
+
+      <section id="chat">
+        <h2>Чат поддержки</h2>
+        <div id="chatContainer"></div>
+        <input type="text" id="chatInput" placeholder="Введите сообщение...">
+        <button onclick="sendMessage()">Отправить</button>
+      </section>
+      
+
+
+      <script>
+        // Функция для загрузки товаров через GraphQL
+        async function loadProducts() {
+  const query = `
+    {
+      products {
+        name
+        price
+        categories
+      }
+    }`;
+
+  try {
+    const response = await fetch('http://localhost:3000/graphql', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query })
+    });
+
+    const result = await response.json();
+    const products = result.data.products;
+
+            showProducts(products); // Отображаем товары
+          } catch (error) {
+            console.error('Ошибка при загрузке товаров:', error);
+          }
+        }
+
+        // Отображение товаров
+        function showProducts(products) {
+          const section = document.getElementById('product-list');
+          section.innerHTML = ""; // Очистка списка перед обновлением
+          products.forEach(product => {
+            const myArticle = document.createElement('article');
+            const myH2 = document.createElement('h2');
+            const myPrice = document.createElement('p');
+            const myDesc = document.createElement('p');
+            const myCategories = document.createElement('p');
+
+            myH2.textContent = product.name;
+            myPrice.textContent = 'Цена: ' + product.price + ' руб.';
+            myCategories.textContent = 'Категории: ' + product.categories.join(', ');
+
+            myArticle.appendChild(myH2);
+            myArticle.appendChild(myPrice);
+            myArticle.appendChild(myDesc);
+            myArticle.appendChild(myCategories);
+
+            section.appendChild(myArticle);
+          });
+        }
+
+        // Загрузка товаров при загрузке страницы
+        loadProducts();
+
+        // Автоматическое обновление списка товаров каждые 5 секунд
+        setInterval(async () => {
+          await loadProducts();
+        }, 5000); // Обновление каждые 5 секунд
+
+        const socket = new WebSocket('ws://localhost:8080'); // Подключаемся к серверу
+
+        socket.onopen = () => {
+            console.log('Подключено к WebSocket серверу');
+        };
+
+        socket.onmessage = (event) => {
+              try {
+                  const data = JSON.parse(event.data); // Преобразуем JSON-строку в объект
+                  displayMessage(data.text); // Отображаем только текст сообщения
+              } catch (error) {
+                  console.error('Ошибка обработки сообщения:', error);
+              }
+          };
+
+
+        socket.onclose = () => {
+            console.log('WebSocket соединение закрыто');
+        };
+
+        function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+
+            if (message) {
+                socket.send(JSON.stringify({ text: message })); // Теперь отправляем JSON
+                input.value = '';
+            }
+        }
+
+
+        function displayMessage(message) {
+    const chatContainer = document.getElementById('chatContainer');
+    const messageElement = document.createElement('p');
+
+    try {
+        const data = JSON.parse(message); // Преобразуем JSON в объект
+        messageElement.textContent = data.text; // Отображаем только текст
+    } catch (error) {
+        messageElement.textContent = message; // Если не JSON, просто показываем как есть
+    }
+
+    chatContainer.appendChild(messageElement); // Добавляем сообщение в контейнер
+}
+
+      </script>
+  </body>
+</html>
